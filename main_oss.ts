@@ -1,10 +1,11 @@
 import { Memory, type MemoryItem } from "mem0ai/oss";
-import { type Message, type SearchResult } from "mem0ai/oss";
+import { type Message } from "mem0ai/oss";
 import OpenAI from "openai";
 import "dotenv/config";
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { config } from "./oss_config.ts";
+import { sleep } from "bun";
 
 let memory: Memory;
 let openaiClient: OpenAI;
@@ -24,7 +25,7 @@ try {
   process.exit(1);
 }
 
-const USER_ID = "platform-quickstart-user";
+const USER_ID = "oss-quickstart-user";
 
 const rl = readline.createInterface({ input, output });
 
@@ -39,13 +40,13 @@ async function searchMemories(
   query: string,
   userId: string,
 ): Promise<Array<MemoryItem>> {
-  console.log("\n[Mem0 Platform] Searching memories..");
+  console.log("\n[Mem0 OSS] Searching memories..");
 
   try {
     if (!userId) {
       throw new Error("User ID is required");
     } else {
-      console.log(`[Mem0 Platform] Searching for memories for user ${userId}`);
+      console.log(`[Mem0 OSS] Searching for memories for user ${userId}`);
     }
     const results = await memory.search(query, {
       userId,
@@ -53,10 +54,10 @@ async function searchMemories(
     });
     const memories = results.results || [];
 
-    console.log(`[Mem0 Platform] Found ${memories.length} relevant memories`);
+    console.log(`[Mem0 OSS] Found ${memories.length} relevant memories`);
     return memories;
   } catch (error: any) {
-    console.error("[Mem0 Platform] Search Error:", error.message);
+    console.error("[Mem0 OSS] Search Error:", error.message);
     return [];
   }
 }
@@ -113,7 +114,7 @@ async function addInteractionToMemory(
   aiResponse: string,
   userId: string,
 ): Promise<void> {
-  console.log("[Mem0 Platform] Adding interaction to memory..");
+  console.log("[Mem0 OSS] Adding interaction to memory..");
   const interaction: Message[] = [
     { role: "user", content: userQuery },
     { role: "assistant", content: aiResponse },
@@ -124,30 +125,30 @@ async function addInteractionToMemory(
       userId,
     });
     const memories = result.results;
-    console.log("[Mem0 Platform] Interaction added to memory.");
+    console.log("[Mem0 OSS] Interaction added to memory.");
     if (memories && memories.length > 0) {
-      console.log("[Mem0 Platform] Raw memories:");
+      console.log("[Mem0 OSS] Raw memories:");
       console.log(JSON.stringify(memories, null, 2));
     }
   } catch (error: any) {
     console.error(
-      "[Mem0 Platform] Error adding interaction to memory:",
+      "[Mem0 OSS] Error adding interaction to memory:",
       error.message,
     );
   }
 }
 
 async function wipeMemory(userId: string): Promise<boolean> {
-  console.log(`[Mem0 Platform] Wiping memories for user ${USER_ID}...`);
+  console.log(`[Mem0 OSS] Wiping memories for user ${USER_ID}...`);
   try {
     const res = await memory.deleteAll({ userId });
     console.log(
-      `[Mem0 Platform] Memories wiped for user ${USER_ID}. Message from mem0:`,
+      `[Mem0 OSS] Memories wiped for user ${USER_ID}. Message from mem0:`,
       res.message,
     );
     return true;
   } catch (error: any) {
-    console.error("[Mem0 Platform] Error wiping memories:", error.message);
+    console.error("[Mem0 OSS] Error wiping memories:", error.message);
     return false;
   }
 }
@@ -164,14 +165,14 @@ function memoryOverview(memories: Array<MemoryItem>): string {
 }
 
 async function listMemory(userId: string): Promise<Array<MemoryItem>> {
-  console.log(`[Mem0 Platform] Listing memories for user ${USER_ID}...`);
+  console.log(`[Mem0 OSS] Listing memories for user ${USER_ID}...`);
   try {
     const results = await memory.getAll({
       userId,
     });
     return results.results;
   } catch (error: any) {
-    console.error("[Mem0 Platform] Error listing memories:", error.message);
+    console.error("[Mem0 OSS] Error listing memories:", error.message);
     return [];
   }
 }
@@ -182,6 +183,8 @@ async function runOSSChat() {
   );
 
   try {
+    // Let redis intialized
+    await sleep(50);
     while (true) {
       const userInput = await rl.question("You: ");
       if (userInput.toLowerCase() === "quit") {
