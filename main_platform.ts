@@ -165,7 +165,7 @@ function memoryOverview(memories: Array<Memory>): string {
 async function listMemory(userId: string): Promise<Array<Memory>> {
   console.log(`[Mem0 Platform] Listing memories for user ${USER_ID}...`);
   try {
-    const results = await mem0Client.search("All memories", {
+    const results = await mem0Client.getAll({
       user_id: userId,
     });
     return results;
