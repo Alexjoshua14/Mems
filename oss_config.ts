@@ -1,14 +1,12 @@
-export const config = {
+const config = {
   vectorStore: {
-    provider: "pgvector",
+    provider: "redis",
     config: {
       collectionName: "memories",
       embeddingModelDims: 1536,
-      user: "test",
-      password: process.env.PGVECTOR_PASSWORD,
-      host: "127.0.0.1",
-      port: 5432,
-      diskann: false, // Optional, requires pgvectorscale extension
+      redisUrl: "redis://localhost:6379",
+      username: process.env.REDIS_USERNAME,
+      password: process.env.REDIS_PASSWORD,
     },
   },
 };
