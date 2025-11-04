@@ -5,7 +5,7 @@ export const config = {
       collectionName: "memories",
       embeddingModelDims: 1536,
       user: "test",
-      password: "123",
+      password: process.env.PGVECTOR_PASSWORD,
       host: "127.0.0.1",
       port: 5432,
       diskann: false, // Optional, requires pgvectorscale extension
