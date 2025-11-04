@@ -11,7 +11,7 @@ let openaiClient: OpenAI;
 try {
   if (!process.env.MEM0_API_KEY || !process.env.OPENAI_API_KEY) {
     throw new Error(
-      "MEM0_API_KEY and OPENAI_API_KEY must be set in environment variables or .env file."
+      "MEM0_API_KEY and OPENAI_API_KEY must be set in environment variables or .env file.",
     );
   }
 
@@ -36,7 +36,7 @@ const rl = readline.createInterface({ input, output });
  */
 async function searchMemories(
   query: string,
-  userId: string
+  userId: string,
 ): Promise<Array<Memory>> {
   console.log("\n[Mem0 Platform] Searching memories..");
 
@@ -81,7 +81,7 @@ function formatMemoriesForPrompt(memories: Array<Memory>): string {
 
 async function getChatbotResponse(
   userQuery: string,
-  memoryContext: string
+  memoryContext: string,
 ): Promise<string> {
   console.log("[Chatbot] Generating response..");
 
@@ -110,7 +110,7 @@ async function getChatbotResponse(
 async function addInteractionToMemory(
   userQuery: string,
   aiResponse: string,
-  userId: string
+  userId: string,
 ): Promise<void> {
   console.log("[Mem0 Platform] Adding interaction to memory..");
   const interaction: Message[] = [
@@ -119,12 +119,19 @@ async function addInteractionToMemory(
   ];
 
   try {
-    await mem0Client.add(interaction, { user_id: userId, version: "v2" });
+    const result = await mem0Client.add(interaction, {
+      user_id: userId,
+      version: "v2",
+    });
     console.log("[Mem0 Platform] Interaction added to memory.");
+    if (result && result.length > 0) {
+      console.log("[Mem0 Platform] Raw result:");
+      console.log(JSON.stringify(result, null, 2));
+    }
   } catch (error: any) {
     console.error(
       "[Mem0 Platform] Error adding interaction to memory:",
-      error.message
+      error.message,
     );
   }
 }
@@ -135,7 +142,7 @@ async function wipeMemory(userId: string): Promise<boolean> {
     const res = await mem0Client.deleteAll({ user_id: userId });
     console.log(
       `[Mem0 Platform] Memories wiped for user ${USER_ID}. Message from mem0:`,
-      res.message
+      res.message,
     );
     return true;
   } catch (error: any) {
@@ -144,14 +151,22 @@ async function wipeMemory(userId: string): Promise<boolean> {
   }
 }
 
+function memoryOverview(memories: Array<Memory>): string {
+  if (memories == null || memories.length == 0) {
+    return "No memories found.";
+  }
+  return memories
+    .map((mem) => {
+      return `${mem.memory}\n  Categories: ${mem.categories?.join(" • ")}\n  Timestamp: ${mem.updated_at}\n`;
+    })
+    .join("\n");
+}
+
 async function listMemory(userId: string): Promise<Array<Memory>> {
   console.log(`[Mem0 Platform] Listing memories for user ${USER_ID}...`);
   try {
     const results = await mem0Client.search("All memories", {
       user_id: userId,
-      limit: 3,
-      version: "v2",
-      output_format: "v1.1",
     });
     return results;
   } catch (error: any) {
@@ -162,7 +177,7 @@ async function listMemory(userId: string): Promise<Array<Memory>> {
 
 async function runChat() {
   console.log(
-    `\nChat session started for user: ${USER_ID}. Type 'quit' to exit.`
+    `\nChat session started for user: ${USER_ID}. Type 'quit' to exit.`,
   );
 
   try {
@@ -172,7 +187,7 @@ async function runChat() {
         break;
       } else if (userInput.toLowerCase() === "reset") {
         const confirmation = await rl.question(
-          `Enter y to confirm memory wipe for user: ${USER_ID}: `
+          `Enter y to confirm memory wipe for user: ${USER_ID}: `,
         );
         if (confirmation.toLowerCase() === "y") {
           await wipeMemory(USER_ID);
@@ -181,8 +196,15 @@ async function runChat() {
       } else if (userInput.toLowerCase() === "list") {
         const memories = await listMemory(USER_ID);
         console.log(
+          `Memories listed for user ${USER_ID}:\n\n`,
+          memoryOverview(memories),
+        );
+        continue;
+      } else if (userInput.toLowerCase() === "inspect") {
+        const memories = await listMemory(USER_ID);
+        console.log(
           `Memories listed for user ${USER_ID}:`,
-          JSON.stringify(memories, null, 2)
+          JSON.stringify(memories, null, 2),
         );
         continue;
       }
