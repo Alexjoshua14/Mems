@@ -5,7 +5,6 @@ import "dotenv/config";
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { config } from "./oss_config.ts";
-import { sleep } from "bun";
 
 let memory: Memory;
 let openaiClient: OpenAI;
@@ -14,6 +13,11 @@ try {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error(
       "OPENAI_API_KEY must be set in environment variables or .env file.",
+    );
+  }
+  if (!process.env.REDIS_USERNAME || !process.env.REDIS_PASSWORD) {
+    throw new Error(
+      "REDIS_USERNAME and REDIS_PASSWORD must be set in environment variables or .env file.",
     );
   }
 
@@ -183,11 +187,12 @@ async function runOSSChat() {
   );
 
   try {
-    // Let redis intialized
-    await sleep(50);
     while (true) {
       const userInput = await rl.question("You: ");
-      if (userInput.toLowerCase() === "quit") {
+      if (
+        userInput.toLowerCase() === "quit" ||
+        userInput.toLowerCase() === "exit"
+      ) {
         break;
       } else if (userInput.toLowerCase() === "reset") {
         const confirmation = await rl.question(
@@ -214,9 +219,13 @@ async function runOSSChat() {
       }
       if (!userInput.trim()) continue;
 
+      console.log("Gathering memories...");
       const relevantMemories = await searchMemories(userInput, USER_ID);
+
+      console.log("Formatting memories...");
       const memoryPromptContext = formatMemoriesForPrompt(relevantMemories);
 
+      console.log("Generating response...");
       const aiOutput = await getChatbotResponse(userInput, memoryPromptContext);
       console.log(`AI: ${aiOutput}`);
 
