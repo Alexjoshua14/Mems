@@ -12,24 +12,24 @@ let openaiClient: OpenAI;
 try {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error(
-      "OPENAI_API_KEY must be set in environment variables or .env file.",
-    );
-  }
-  if (!process.env.REDIS_USERNAME || !process.env.REDIS_PASSWORD) {
-    throw new Error(
-      "REDIS_USERNAME and REDIS_PASSWORD must be set in environment variables or .env file.",
+      "OPENAI_API_KEY must be set in environment variables or .env file."
     );
   }
 
   memory = new Memory(config);
   openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  console.log("Clients intialized successfully");
+  console.log("Clients initialized successfully");
 } catch (error: any) {
   console.error("Initialization Error:", error.message);
   process.exit(1);
 }
+let startMemoryAddOverall: number;
+let startMemoryAdd: number;
+let endMemoryAdd: number;
+let endMemoryAddOverall: number;
 
 const USER_ID = "oss-quickstart-user";
+const ANALYZE_PERFORMANCE = true;
 
 const rl = readline.createInterface({ input, output });
 
@@ -42,7 +42,7 @@ const rl = readline.createInterface({ input, output });
  */
 async function searchMemories(
   query: string,
-  userId: string,
+  userId: string
 ): Promise<Array<MemoryItem>> {
   console.log("\n[Mem0 OSS] Searching memories..");
 
@@ -87,7 +87,7 @@ function formatMemoriesForPrompt(memories: Array<MemoryItem>): string {
 
 async function getChatbotResponse(
   userQuery: string,
-  memoryContext: string,
+  memoryContext: string
 ): Promise<string> {
   console.log("[Chatbot] Generating response..");
 
@@ -116,18 +116,39 @@ async function getChatbotResponse(
 async function addInteractionToMemory(
   userQuery: string,
   aiResponse: string,
-  userId: string,
+  userId: string
 ): Promise<void> {
   console.log("[Mem0 OSS] Adding interaction to memory..");
+  if (ANALYZE_PERFORMANCE) {
+    console.log(
+      "[Mem0 OSS] Add interaction to memory performance analysis started.."
+    );
+    const start = performance.now();
+  }
   const interaction: Message[] = [
     { role: "user", content: userQuery },
     { role: "assistant", content: aiResponse },
   ];
 
   try {
+    if (ANALYZE_PERFORMANCE) {
+      console.log(
+        "[Mem0 OSS] Add interaction to memory performance analysis started.."
+      );
+      startMemoryAdd = performance.now();
+    }
     const result = await memory.add(interaction, {
       userId,
     });
+
+    if (ANALYZE_PERFORMANCE) {
+      endMemoryAdd = performance.now();
+      console.log(
+        `[Mem0 OSS] Add interaction to memory performance analysis: ${
+          endMemoryAdd - startMemoryAdd
+        } milliseconds`
+      );
+    }
     const memories = result.results;
     console.log("[Mem0 OSS] Interaction added to memory.");
     if (memories && memories.length > 0) {
@@ -137,18 +158,18 @@ async function addInteractionToMemory(
   } catch (error: any) {
     console.error(
       "[Mem0 OSS] Error adding interaction to memory:",
-      error.message,
+      error.message
     );
   }
 }
 
 async function wipeMemory(userId: string): Promise<boolean> {
-  console.log(`[Mem0 OSS] Wiping memories for user ${USER_ID}...`);
+  console.log(`[Mem0 OSS] Wiping memories for user ${userId}...`);
   try {
     const res = await memory.deleteAll({ userId });
     console.log(
-      `[Mem0 OSS] Memories wiped for user ${USER_ID}. Message from mem0:`,
-      res.message,
+      `[Mem0 OSS] Memories wiped for user ${userId}. Message from mem0:`,
+      res.message
     );
     return true;
   } catch (error: any) {
@@ -169,7 +190,7 @@ function memoryOverview(memories: Array<MemoryItem>): string {
 }
 
 async function listMemory(userId: string): Promise<Array<MemoryItem>> {
-  console.log(`[Mem0 OSS] Listing memories for user ${USER_ID}...`);
+  console.log(`[Mem0 OSS] Listing memories for user ${userId}...`);
   try {
     const results = await memory.getAll({
       userId,
@@ -183,7 +204,7 @@ async function listMemory(userId: string): Promise<Array<MemoryItem>> {
 
 async function runOSSChat() {
   console.log(
-    `\nChat session started for user: ${USER_ID}. Type 'quit' to exit.`,
+    `\nChat session started for user: ${USER_ID}. Type 'quit' to exit.`
   );
 
   try {
@@ -196,7 +217,7 @@ async function runOSSChat() {
         break;
       } else if (userInput.toLowerCase() === "reset") {
         const confirmation = await rl.question(
-          `Enter y to confirm memory wipe for user: ${USER_ID}: `,
+          `Enter y to confirm memory wipe for user: ${USER_ID}: `
         );
         if (confirmation.toLowerCase() === "y") {
           await wipeMemory(USER_ID);
@@ -206,14 +227,14 @@ async function runOSSChat() {
         const memories = await listMemory(USER_ID);
         console.log(
           `Memories listed for user ${USER_ID}:\n\n`,
-          memoryOverview(memories),
+          memoryOverview(memories)
         );
         continue;
       } else if (userInput.toLowerCase() === "inspect") {
         const memories = await listMemory(USER_ID);
         console.log(
           `Memories listed for user ${USER_ID}:`,
-          JSON.stringify(memories, null, 2),
+          JSON.stringify(memories, null, 2)
         );
         continue;
       }
