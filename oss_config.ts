@@ -2,17 +2,17 @@ import "dotenv/config";
 
 export const config = {
   embedder: {
-    provider: "openai",
+    provider: "ollama",
     config: {
-      apiKey: process.env.OPENAI_API_KEY || "",
-      model: "text-embedding-3-small",
+      model: "all-minilm",
+      url: "http://localhost:11434",
     },
   },
   vectorStore: {
     provider: "qdrant",
     config: {
       collectionName: "memories",
-      embeddingModelDims: 1536,
+      embeddingModelDims: 384,
       host: "localhost",
       port: 6333,
     },

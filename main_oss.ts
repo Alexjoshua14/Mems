@@ -91,8 +91,8 @@ async function getChatbotResponse(
 ): Promise<string> {
   console.log("[Chatbot] Generating response..");
 
-  const systemPrompt =
-    "You are a helpful assistant that remembers previous interactions.";
+  const systemPrompt = 2;
+  ("You are a helpful assistant that remembers previous interactions.");
 
   try {
     const response = await openaiClient.responses.create({
@@ -160,6 +160,7 @@ async function addInteractionToMemory(
       "[Mem0 OSS] Error adding interaction to memory:",
       error.message
     );
+    console.error("Error details:", JSON.stringify(error, null, 2));
   }
 }
 
