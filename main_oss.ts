@@ -263,7 +263,7 @@ async function runOSSChat() {
       );
       console.log(`AI: ${aiOutput}`);
 
-      await addInteractionToMemory(userInput, aiOutput, USER_ID);
+      addInteractionToMemory(userInput, aiOutput, USER_ID).catch(console.error);
     }
   } catch (error: any) {
     console.error("\nAn error occurred during the chat:", error.message);
