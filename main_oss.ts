@@ -1,10 +1,42 @@
-import { Memory, type MemoryItem } from "mem0ai/oss";
-import { type Message } from "mem0ai/oss";
 import OpenAI from "openai";
 import "dotenv/config";
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { config } from "./oss_config.ts";
+import { Memory, type MemoryItem, type Message } from "mem0ai/oss";
+
+const OLLAMA_URL =
+  (config as any)?.embedder?.config?.url || "http://127.0.0.1:11434";
+const EMBED_MODEL = (config as any)?.embedder?.config?.model || "all-minilm";
+
+const ANALYZE_PERFORMANCE = true;
+
+async function warmEmbedder() {
+  try {
+    const res = await fetch(`${OLLAMA_URL}/api/embed`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ model: EMBED_MODEL, input: "warmup" }),
+    });
+    await res.json();
+    console.log(`[Warmup] Embedder '${EMBED_MODEL}' warmed.`);
+  } catch (e: any) {
+    console.warn("[Warmup] Failed to warm embedder:", e?.message || e);
+  }
+}
+
+async function timeit<T>(
+  label: string,
+  fn: () => Promise<T>
+): Promise<{ ms: number; value: T }> {
+  const t0 = performance.now();
+  const value = await fn();
+  const ms = performance.now() - t0;
+  if (ANALYZE_PERFORMANCE) {
+    console.log(`[Perf] ${label}: ${ms.toFixed(2)} ms`);
+  }
+  return { ms, value };
+}
 
 let memory: Memory;
 let openaiClient: OpenAI;
@@ -23,15 +55,8 @@ try {
   console.error("Initialization Error:", error.message);
   process.exit(1);
 }
-let startMemoryAddOverall: number;
-let startMemoryAdd: number;
-let endMemoryAdd: number;
-let endMemoryAddOverall: number;
 
 const USER_ID = "oss-quickstart-user";
-const ANALYZE_PERFORMANCE = true;
-
-const rl = readline.createInterface({ input, output });
 
 /**
  * Searches for memories using the Mem0 API.
@@ -91,8 +116,8 @@ async function getChatbotResponse(
 ): Promise<string> {
   console.log("[Chatbot] Generating response..");
 
-  const systemPrompt = 2;
-  ("You are a helpful assistant that remembers previous interactions.");
+  const systemPrompt =
+    "You are a helpful assistant that remembers previous interactions. Use the provided memory context if relevant.";
 
   try {
     const response = await openaiClient.responses.create({
@@ -119,36 +144,17 @@ async function addInteractionToMemory(
   userId: string
 ): Promise<void> {
   console.log("[Mem0 OSS] Adding interaction to memory..");
-  if (ANALYZE_PERFORMANCE) {
-    console.log(
-      "[Mem0 OSS] Add interaction to memory performance analysis started.."
-    );
-    const start = performance.now();
-  }
+
   const interaction: Message[] = [
     { role: "user", content: userQuery },
     { role: "assistant", content: aiResponse },
   ];
 
   try {
-    if (ANALYZE_PERFORMANCE) {
-      console.log(
-        "[Mem0 OSS] Add interaction to memory performance analysis started.."
-      );
-      startMemoryAdd = performance.now();
-    }
-    const result = await memory.add(interaction, {
-      userId,
-    });
+    const { value: result } = await timeit("mem0.add()", () =>
+      memory.add(interaction, { userId })
+    );
 
-    if (ANALYZE_PERFORMANCE) {
-      endMemoryAdd = performance.now();
-      console.log(
-        `[Mem0 OSS] Add interaction to memory performance analysis: ${
-          endMemoryAdd - startMemoryAdd
-        } milliseconds`
-      );
-    }
     const memories = result.results;
     console.log("[Mem0 OSS] Interaction added to memory.");
     if (memories && memories.length > 0) {
@@ -208,6 +214,8 @@ async function runOSSChat() {
     `\nChat session started for user: ${USER_ID}. Type 'quit' to exit.`
   );
 
+  await warmEmbedder();
+
   try {
     while (true) {
       const userInput = await rl.question("You: ");
@@ -242,13 +250,17 @@ async function runOSSChat() {
       if (!userInput.trim()) continue;
 
       console.log("Gathering memories...");
-      const relevantMemories = await searchMemories(userInput, USER_ID);
+      const { value: relevantMemories } = await timeit("mem0.search()", () =>
+        searchMemories(userInput, USER_ID)
+      );
 
       console.log("Formatting memories...");
       const memoryPromptContext = formatMemoriesForPrompt(relevantMemories);
 
       console.log("Generating response...");
-      const aiOutput = await getChatbotResponse(userInput, memoryPromptContext);
+      const { value: aiOutput } = await timeit("LLM response", () =>
+        getChatbotResponse(userInput, memoryPromptContext)
+      );
       console.log(`AI: ${aiOutput}`);
 
       await addInteractionToMemory(userInput, aiOutput, USER_ID);
@@ -260,5 +272,7 @@ async function runOSSChat() {
     console.log(`\nChat session ended for user: ${USER_ID}.`);
   }
 }
+
+const rl = readline.createInterface({ input, output });
 
 runOSSChat();
