@@ -4,15 +4,17 @@ export const config = {
   embedder: {
     provider: "ollama",
     config: {
-      model: "all-minilm",
+      model: "nomic-embed-text",
       url: "http://localhost:11434",
+      embeddingDims: 768,
     },
   },
   vectorStore: {
     provider: "qdrant",
     config: {
       collectionName: "memories",
-      embeddingModelDims: 384,
+      embeddingModelDims: 768,
+      dimension: 768,
       host: "localhost",
       port: 6333,
     },
